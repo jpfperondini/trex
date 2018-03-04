@@ -7,6 +7,7 @@ local isRunning = true
 
 local push = require "lib/push"
 local trex = require "trex"
+local score = require "score"
 local ground = require "ground"
 local cloud = require "cloud"
 local hazards = require "hazards"
@@ -35,15 +36,15 @@ function love.load()
     ground:load(spritesheet)
     cloud:load(spritesheet)
     hazards:load(spritesheet)
+    score:load(spritesheet)
 end
-
 
 local function reset()
     hazards:reset()
     trex:reset()
+    score:reset()
     isRunning = true
 end
-
 
 function love.update(dt)
     if not isRunning then
@@ -54,6 +55,7 @@ function love.update(dt)
     cloud:update(dt)
     hazards:update(dt)
     trex:update(dt)
+    score:update(dt)
 
     local t = trex:rect()
     local hs = hazards:rects()
@@ -83,6 +85,7 @@ function love.draw()
     ground:draw()
     cloud:draw()
     hazards:draw()
+    score:render()
     trex:render()
     push:finish()
 end
