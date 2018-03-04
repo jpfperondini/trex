@@ -83,6 +83,6 @@ function love.draw()
     ground:draw()
     cloud:draw()
     hazards:draw()
-    trex:draw()
+    trex:render()
     push:finish()
 end

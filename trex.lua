@@ -1,51 +1,67 @@
+local Animation = require "animation"
+local StateMachine = require "stateMachine"
+
 local trex = {}
+local animation
+local stateMachine
 
-local runAnimation
-local idleAnimation
-local deathAnimation
-local currentAnimation
-local spritesheet
-
-local runFPS = 10
-local runSPF = 1 / runFPS
-local timer = 0
-local currentQuad = 1
 local GRAVITY = 1500
 local JUMP_SPEED = -500
 
-function trex:load(spritesheetParam)
-    if spritesheet == nil then
-        spritesheet = spritesheetParam
+-- RUN STATE
+local function runEnter(target, previous)
+    animation:set("run")
+end
+
+-- JUMP STATE
+local function jumpEnter(target, previous)
+    animation:set("idle")
+    target.vy = JUMP_SPEED
+end
+
+local function jumpUpdate(dt, target)
+    target.vy = target.vy + GRAVITY * dt
+    target.y = math.min(GROUND - target.height, target.y + target.vy * dt)
+    if target.y == GROUND - target.height then
+        state:set("run")
+    end
+end
+
+-- DEATH STATE
+local function deathEnter(target, previous)
+    animation:set("death")
+end
+
+local function jumpExit(target)
+    target.vy = 0
+end
+
+function trex:load(spritesheet)
+    if animation == nil then
+        animation = Animation.new(spritesheet, 10)
+        animation:add(
+            "run",
+            {
+                {x = 6, y = 123, w = 40, h = 43},
+                {x = 55, y = 123, w = 40, h = 43}
+            }
+        )
+        animation:add("idle", {{x = 7, y = 47, w = 40, h = 43}})
+        animation:add("death", {{x = 69, y = 49, w = 40, h = 43}})
     end
 
-    if runAnimation == nil then
-        runAnimation = {
-            love.graphics.newQuad(6, 123, 40, 43, spritesheet:getDimensions()),
-            love.graphics.newQuad(55, 123, 40, 43, spritesheet:getDimensions())
-        }
+    if state == nil then
+        state = StateMachine.new(self)
+        state:add("run", runEnter, nil, nil)
+        state:add("jump", jumpEnter, jumpUpdate, jumpExit)
+        state:add("death", deathEnter, nil, nil)
     end
 
-    if idleAnimation == nil then
-        idleAnimation = {
-            love.graphics.newQuad(7, 47, 40, 43, spritesheet:getDimensions())
-        }
-    end
-
-    if deathAnimation == nil then
-        deathAnimation = {
-            love.graphics.newQuad(70, 49, 40, 43, spritesheet:getDimensions())
-        }
-    end
     trex:reset()
 end
 
-function trex:handleCollision()
-    currentAnimation = deathAnimation
-    currentQuad = 1
-end
-
 function trex:reset()
-    currentAnimation = runAnimation
+    state:set("run")
     self.width = 40
     self.height = 43
     self.x = 100
@@ -53,13 +69,12 @@ function trex:reset()
     self.vy = 0
 end
 
+function trex:handleCollision()
+    state:set("death")
+end
+
 function trex:jump()
-    if not isJumping then
-        isJumping = true
-        currentAnimation = idleAnimation
-        currentQuad = 1
-        self.vy = JUMP_SPEED
-    end
+    state:set("jump")
 end
 
 function trex:rect()
@@ -72,29 +87,12 @@ function trex:rect()
 end
 
 function trex:update(dt)
-    self.vy = self.vy + GRAVITY * dt
-    self.y = math.min(GROUND - self.height, self.y + self.vy * dt)
-    if self.y == GROUND - self.height then
-        if isJumping then
-            isJumping = false
-            currentAnimation = runAnimation
-        end
-        self.vy = 0
-    end
-
-    timer = timer + dt
-    if timer > runSPF then
-        currentQuad = currentQuad + 1
-        if currentQuad > #currentAnimation then
-            currentQuad = 1
-        end
-        timer = 0
-    end
+    state:update(dt)
+    animation:update(dt)
 end
 
-
-function trex:draw()
-    love.graphics.draw(spritesheet, currentAnimation[currentQuad], self.x, self.y)
+function trex:render()
+    animation:render(self.x, self.y)
 end
 
 return trex
